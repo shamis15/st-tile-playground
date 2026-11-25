@@ -1,1 +1,1 @@
-https://github.com/shamis15/st-tile-playground/releases/download/v0.1/streamlit-1.66.1-py3-none-any.whl
+https://github.com/shamis15/st-tile-playground/releases/download/v0.2/streamlit-1.66.1-py3-none-any.whl
