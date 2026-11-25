@@ -84,6 +84,54 @@ with st.sidebar:
             "Main background",
             "#171614" if st.context.theme.type == "dark" else "#ffffff",
         )
+
+        def _is_light(hex_color: str) -> bool:
+            # Relative luminance above ~0.18 contrasts better with dark text.
+            channels = [int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+            lin = [
+                c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+                for c in channels
+            ]
+            return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2] > 0.179
+
+        _dark_ink, _light_ink = "#1a1a1a", "#fafafa"
+        text_mode = st.radio(
+            "Text color",
+            ["Auto", "Custom"],
+            horizontal=True,
+            captions=["Contrast with each background", "Pick tile and page text"],
+            key="tile-text-mode",
+        )
+        _text_tags = "p, span, label, li, h1, h2, h3, h4, h5, h6"
+        # Skip badges, metric deltas and buttons so colored fills keep readable text.
+        _tile_text_rule = f"""
+              [data-testid="stTile"] :is({_text_tags}):not(
+                .stMarkdownBadge, .stMarkdownBadge *, [data-testid="stBadge"] *,
+                [data-testid="stMetricDelta"] *, button *, [data-baseweb] *
+              ) {{ color: %s !important; }}
+        """
+        _main_text_rule = f"""
+              [data-testid="stMain"] :is({_text_tags}):not(
+                [data-testid="stTile"] *, button *, [data-baseweb] *
+              ) {{ color: %s !important; }}
+        """
+        text_css = ""
+        page_is_light = _is_light(page_bg)
+        if text_mode == "Custom":
+            # Defaults follow the backgrounds, so changing a background resets
+            # the picker to a readable color.
+            tile_backdrop = fill if surface != "Outlined" else page_bg
+            tile_text = st.color_picker(
+                "Tile text", _dark_ink if _is_light(tile_backdrop) else _light_ink
+            )
+            main_text = st.color_picker(
+                "Main text", _dark_ink if page_is_light else _light_ink
+            )
+            text_css = _tile_text_rule % tile_text + _main_text_rule % main_text
+        elif page_is_light == (st.context.theme.type == "dark"):
+            # The page background fights the theme's own text color; tiles
+            # already pick their text from their fill.
+            text_css = _main_text_rule % (_dark_ink if page_is_light else _light_ink)
         use_echarts = st.toggle("Use ECharts", value=False)
         tile_shadow = (
             """
@@ -103,6 +151,7 @@ with st.sidebar:
                 background-color: {page_bg} !important;
               }}
               {tile_shadow}
+              {text_css}
             </style>
             """,
             unsafe_allow_html=True,
